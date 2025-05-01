@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 namespace generator
 {
@@ -19,26 +21,46 @@ namespace generator
            return data[random.Next(0, size)]; 
         }
     }
+
+    public class BigramTextGenerator
+    {
+        private Dictionary<char, List<(char nextChar, double weight)>> bigramTable;
+        private Random random;
+
+        public BigramTextGenerator()
+        {
+            bigramTable = new Dictionary<char, List<(char, double)>>();
+            random = new Random();
+        }
+        public void LoadBigramData(string path)
+        {
+            
+            foreach (var line in File.ReadLines(path))
+            {
+                var parts = line.Split(',');
+                if (parts.Length != 3) continue;
+
+                char first = parts[0][0];
+                char second = parts[1][0];
+                double weight = double.Parse(parts[2]);
+
+                if (!bigramTable.ContainsKey(first))
+                    bigramTable[first] = new List<(char, double)>();
+
+                bigramTable[first].Add((second, weight));
+            }
+        }
+
+    }
     class Program
     {
         static void Main(string[] args)
         {
-            CharGenerator gen = new CharGenerator();
-            SortedDictionary<char, int> stat = new SortedDictionary<char, int>();
-            for(int i = 0; i < 1000; i++) 
-            {
-               char ch = gen.getSym(); 
-               if (stat.ContainsKey(ch))
-                  stat[ch]++;
-               else
-                  stat.Add(ch, 1); Console.Write(ch);
-            }
-            Console.Write('\n');
-            foreach (KeyValuePair<char, int> entry in stat) 
-            {
-                 Console.WriteLine("{0} - {1}",entry.Key,entry.Value/1000.0); 
-            }
-            
+            var bigramGen = new BigramTextGenerator();
+            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "res/bigrams.txt");
+
+            bigramGen.LoadBigramData(path);
+
         }
     }
 }

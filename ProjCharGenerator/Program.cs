@@ -35,7 +35,7 @@ namespace generator
         }
         public void LoadBigramData(string path)
         {
-            
+
             foreach (var line in File.ReadLines(path))
             {
                 if (string.IsNullOrWhiteSpace(line))
@@ -55,17 +55,20 @@ namespace generator
                     bigramTable[first] = new List<(char, double)>();
 
                 bigramTable[first].Add((second, weight));
-                Console.WriteLine($"Загружено {bigramTable.Count} стартовых символов.");
 
             }
         }
+
         private char GetNextChar(char current)
         {
             if (!bigramTable.ContainsKey(current))
                 return ' '; 
 
             var options = bigramTable[current];
-            double totalWeight = options.Sum(x => x.weight);
+            double maxWeight = options.Max(x => x.weight);
+            var invertedOptions = options.Select(x => (x.Item1, weight: maxWeight - x.weight + 0.0001)).ToList();
+
+            double totalWeight = invertedOptions.Sum(x => x.weight);
             double roll = random.NextDouble() * totalWeight;
 
             foreach (var (nextChar, weight) in options)
@@ -83,7 +86,7 @@ namespace generator
             if (bigramTable.Count == 0)
                 throw new InvalidOperationException("Bigram data not loaded.");
 
-            char current = bigramTable.Keys.First(); 
+            char current = bigramTable.Keys.First();
             var result = new List<char> { current };
 
             for (int i = 1; i < length; i++)

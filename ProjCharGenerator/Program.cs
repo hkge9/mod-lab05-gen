@@ -51,6 +51,14 @@ namespace generator
                 if (!double.TryParse(parts[3], NumberStyles.Any, CultureInfo.InvariantCulture, out double weight))
                     continue;
 
+                if (!double.TryParse(parts[3], NumberStyles.Any, CultureInfo.InvariantCulture, out double rank))
+                    continue;
+
+             
+
+
+                weight = 1.0 / (rank + 1);
+
                 if (!bigramTable.ContainsKey(first))
                     bigramTable[first] = new List<(char, double)>();
 
@@ -59,16 +67,30 @@ namespace generator
             }
         }
 
+        //public void SaveBigramWeightsToPlot(string path)
+        //{
+        //    using (var writer = new StreamWriter(path))
+        //    {
+        //        foreach (var kvp in bigramTable)
+        //        {
+        //            char first = kvp.Key;
+        //            foreach (var (second, weight) in kvp.Value)
+        //            {
+        //                writer.WriteLine($"{first} {second} {weight}");
+        //            }
+        //        }
+        //    }
+        //}
+
+        
         private char GetNextChar(char current)
         {
             if (!bigramTable.ContainsKey(current))
                 return ' '; 
 
             var options = bigramTable[current];
-            double maxWeight = options.Max(x => x.weight);
-            var invertedOptions = options.Select(x => (x.Item1, weight: maxWeight - x.weight + 0.0001)).ToList();
 
-            double totalWeight = invertedOptions.Sum(x => x.weight);
+            double totalWeight = options.Sum(x => x.weight);
             double roll = random.NextDouble() * totalWeight;
 
             foreach (var (nextChar, weight) in options)
@@ -109,6 +131,9 @@ namespace generator
             var bigramText = bigramGen.GenerateText(1000);
             Console.WriteLine(bigramText);
             File.WriteAllText("output_bigram.txt", bigramText);
+
+            //bigramGen.SaveBigramWeightsToPlot("bigram_weights.txt");
+
         }
     }
 }

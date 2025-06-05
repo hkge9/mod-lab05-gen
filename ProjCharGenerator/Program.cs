@@ -66,23 +66,53 @@ namespace generator
 
             }
         }
+        public void SaveBigramComparison(string generatedText, string outputPath)
+        {
+            // Построим словарь: биграмма -> сколько раз она встретилась
+            Dictionary<string, int> actualCounts = new Dictionary<string, int>();
+            for (int i = 0; i < generatedText.Length - 1; i++)
+            {
+                string bigram = $"{generatedText[i]}{generatedText[i + 1]}";
+                if (!actualCounts.ContainsKey(bigram))
+                    actualCounts[bigram] = 0;
+                actualCounts[bigram]++;
+            }
 
-        //public void SaveBigramWeightsToPlot(string path)
-        //{
-        //    using (var writer = new StreamWriter(path))
-        //    {
-        //        foreach (var kvp in bigramTable)
-        //        {
-        //            char first = kvp.Key;
-        //            foreach (var (second, weight) in kvp.Value)
-        //            {
-        //                writer.WriteLine($"{first} {second} {weight}");
-        //            }
-        //        }
-        //    }
-        //}
+            // Теперь создаём словарь: биграмма -> ожидаемый ранг
+            Dictionary<string, int> expectedRanks = new Dictionary<string, int>();
+            foreach (var line in File.ReadLines("res/bigrams.txt"))
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
 
-        
+                var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 4 || parts[1].Length != 2)
+                    continue;
+
+                string bigram = parts[1];
+                if (int.TryParse(parts[3], out int rank))
+                {
+                    expectedRanks[bigram] = rank;
+                }
+            }
+
+            // Сохраняем в CSV: bigram,rank,actual_count
+            using (var writer = new StreamWriter(outputPath))
+            {
+                writer.WriteLine("bigram,expected_rank,actual_count");
+                foreach (var kvp in actualCounts)
+                {
+                    string bigram = kvp.Key;
+                    int actual = kvp.Value;
+                    int rank = expectedRanks.ContainsKey(bigram) ? expectedRanks[bigram] : -1; // -1 если нет в таблице
+
+                    writer.WriteLine($"{bigram},{rank},{actual}");
+                }
+            }
+        }
+
+
+
         private char GetNextChar(char current)
         {
             if (!bigramTable.ContainsKey(current))
@@ -132,7 +162,8 @@ namespace generator
             Console.WriteLine(bigramText);
             File.WriteAllText("output_bigram.txt", bigramText);
 
-            //bigramGen.SaveBigramWeightsToPlot("bigram_weights.txt");
+            bigramGen.SaveBigramComparison(bigramText, "bigram_comparison.csv");
+
 
         }
     }

@@ -154,7 +154,7 @@ namespace generator
         public double Probability { get; set; }
 
 
-        static List<WordGenerator> LoadWordsFreq(string filePath)
+        public List<WordGenerator> LoadWordsFreq(string filePath)
         {
             var list = new List<WordGenerator>();
             if (!File.Exists(filePath))
@@ -179,6 +179,61 @@ namespace generator
             }
             return list;
         }
+
+        public string GenerateText(List<WordGenerator> wordFreqs, int wordCount)
+        {
+            var rnd = new Random();
+
+            var cumulativeProbs = new double[wordFreqs.Count];
+            cumulativeProbs[0] = wordFreqs[0].Probability;
+            for (int i = 1; i < wordFreqs.Count; i++)
+            {
+                cumulativeProbs[i] = cumulativeProbs[i - 1] + wordFreqs[i].Probability;
+            }
+
+            var words = new List<string>();
+
+            for (int i = 0; i < wordCount; i++)
+            {
+                double r = rnd.NextDouble();
+                int index = Array.BinarySearch(cumulativeProbs, r);
+                if (index < 0)
+                    index = ~index;
+
+                if (index >= wordFreqs.Count)
+                    index = wordFreqs.Count - 1;
+
+                words.Add(wordFreqs[index].Word);
+            }
+
+            return string.Join(" ", words);
+        }
+
+        public void SaveWordComparison(string generatedText, List<WordGenerator> wordFreqs, string outputPath)
+        {
+            var generatedWords = generatedText.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            int totalGenerated = generatedWords.Length;
+
+            var actualCounts = generatedWords
+                .GroupBy(word => word)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            using (var writer = new StreamWriter(outputPath))
+            {
+                writer.WriteLine("word,expected,actual");
+
+                foreach (var wf in wordFreqs)
+                {
+                    double expectedProb = wf.Probability;
+                    double actualProb = actualCounts.TryGetValue(wf.Word, out int count)
+                        ? (double)count / totalGenerated
+                        : 0.0;
+
+                    writer.WriteLine($"{wf.Word},{expectedProb.ToString(CultureInfo.InvariantCulture)},{actualProb.ToString(CultureInfo.InvariantCulture)}");
+                }
+            }
+        }
+
     }
     class Program
     {
@@ -190,10 +245,47 @@ namespace generator
             bigramGen.LoadBigramData(path);
             var bigramText = bigramGen.GenerateText(1000);
             Console.WriteLine(bigramText);
-            File.WriteAllText("output_bigram.txt", bigramText);
+
+
+            string resultsPathBigrams = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Results");
+            Directory.CreateDirectory(resultsPathBigrams);
+
+            File.WriteAllText(Path.Combine(resultsPathBigrams, "gen-1.txt"), bigramText);
 
             bigramGen.SaveBigramComparison(bigramText, "bigram_comparison.csv");
 
+            Console.WriteLine();
+
+            string pathWords = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "res/words_freq.txt");
+
+            var textGenerator = new WordGenerator();
+
+
+
+            var wordFreqs = textGenerator.LoadWordsFreq(pathWords);
+
+            if (wordFreqs.Count == 0)
+            {
+                Console.WriteLine("Список слов пуст.");
+                return;
+            }
+
+            int totalFreq = wordFreqs.Sum(wf => wf.Frequency);
+            foreach (var wf in wordFreqs)
+            {
+                wf.Probability = (double)wf.Frequency / totalFreq;
+            }
+
+            string generatedText = textGenerator.GenerateText(wordFreqs, 1000);
+            Console.WriteLine("Сгенерированный текст:");
+            Console.WriteLine(generatedText);
+
+            string resultsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Results");
+            Directory.CreateDirectory(resultsPath);
+
+            File.WriteAllText(Path.Combine(resultsPath, "gen-2.txt"), generatedText);
+
+            textGenerator.SaveWordComparison(generatedText, wordFreqs, Path.Combine(resultsPath, "word_distribution.csv"));
 
         }
     }

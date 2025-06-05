@@ -68,7 +68,6 @@ namespace generator
         }
         public void SaveBigramComparison(string generatedText, string outputPath)
         {
-            // Построим словарь: биграмма -> сколько раз она встретилась
             Dictionary<string, int> actualCounts = new Dictionary<string, int>();
             for (int i = 0; i < generatedText.Length - 1; i++)
             {
@@ -77,8 +76,6 @@ namespace generator
                     actualCounts[bigram] = 0;
                 actualCounts[bigram]++;
             }
-
-            // Теперь создаём словарь: биграмма -> ожидаемый ранг
             Dictionary<string, int> expectedRanks = new Dictionary<string, int>();
             foreach (var line in File.ReadLines("res/bigrams.txt"))
             {
@@ -96,7 +93,6 @@ namespace generator
                 }
             }
 
-            // Сохраняем в CSV: bigram,rank,actual_count
             using (var writer = new StreamWriter(outputPath))
             {
                 writer.WriteLine("bigram,expected_rank,actual_count");
@@ -148,6 +144,40 @@ namespace generator
             }
 
             return new string(result.ToArray());
+        }
+    }
+
+    public class WordGenerator
+    {
+        public string Word { get; set; }
+        public int Frequency { get; set; }
+        public double Probability { get; set; }
+
+
+        static List<WordGenerator> LoadWordsFreq(string filePath)
+        {
+            var list = new List<WordGenerator>();
+            if (!File.Exists(filePath))
+            {
+                Console.WriteLine($"Файл {filePath} не найден.");
+                return list;
+            }
+
+            foreach (var line in File.ReadLines(filePath))
+            {
+                var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 6)
+                    continue;
+
+                string word = parts[1];
+                if (!double.TryParse(parts[4], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double freqDouble))
+                    continue;
+
+                int freq = (int)Math.Round(freqDouble);
+
+                list.Add(new WordGenerator { Word = word, Frequency = freq });
+            }
+            return list;
         }
     }
     class Program
